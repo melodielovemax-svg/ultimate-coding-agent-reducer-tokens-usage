@@ -1,0 +1,35 @@
+{
+  "name": "tokens-usage-reducer",
+  "version": "1.0.0",
+  "description": "Aggressive token-usage reduction configs for opencode, GitHub Copilot, Gemini CLI and Antigravity CLI. One command, four platforms.",
+  "type": "module",
+  "bin": {
+    "tur": "./bin/tur.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "validate": "node scripts/validate-schemas.mjs",
+    "lint": "node --check bin/tur.mjs"
+  },
+  "keywords": [
+    "opencode",
+    "copilot",
+    "gemini-cli",
+    "antigravity",
+    "tokens",
+    "context",
+    "compaction"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0"
+  }
+}
