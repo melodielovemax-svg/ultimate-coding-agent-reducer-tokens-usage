@@ -13,7 +13,7 @@ import {
   writeOwned,
 } from '../fsutil.mjs'
 import { PROFILES, OWNED_KEYS } from '../profiles.mjs'
-import { RULES_BODY } from '../rules.mjs'
+import { rulesForProfile } from '../rules.mjs'
 
 function globalDir() {
   return path.join(home(), '.config', 'opencode')
@@ -76,7 +76,7 @@ export default {
     }
 
     return [
-      { kind: rulesTarget.kind, file: rulesTarget.file, body: RULES_BODY },
+      { kind: rulesTarget.kind, file: rulesTarget.file, body: rulesForProfile(profile) },
       { kind: 'config', file: configTarget.file, patch },
     ]
   },

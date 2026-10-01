@@ -8,7 +8,7 @@ import {
   upsertManagedBlock,
   writeOwned,
 } from '../fsutil.mjs'
-import { RULES_BODY, AGENTS_EXTRA } from '../rules.mjs'
+import { rulesForProfile, AGENTS_EXTRA } from '../rules.mjs'
 
 // Copilot exposes no setting for context window size, tool-output caps, or
 // compaction, so the instruction file is the only lever available. That is
@@ -48,7 +48,8 @@ export default {
     const targets = this.targets(scope)
     // Project scope also gets the workspace facts, since Copilot will not read
     // AGENTS.md unless the repo opts in.
-    const body = scope === 'global' ? RULES_BODY : `${RULES_BODY}\n${AGENTS_EXTRA.trim()}\n`
+    const rules = rulesForProfile(profile)
+    const body = scope === 'global' ? rules : `${rules}\n${AGENTS_EXTRA.trim()}\n`
     return targets.map((t) => ({ kind: t.kind, file: t.file, body }))
   },
 

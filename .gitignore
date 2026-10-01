@@ -3,3 +3,6 @@ node_modules/
 *.tur-backup
 *.log
 .DS_Store
+
+# Local debugging scripts, not part of the tool.
+scratch/

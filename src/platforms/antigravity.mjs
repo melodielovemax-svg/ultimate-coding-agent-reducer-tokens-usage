@@ -9,7 +9,7 @@ import {
   upsertManagedBlock,
   writeOwned,
 } from '../fsutil.mjs'
-import { RULES_BODY } from '../rules.mjs'
+import { rulesForProfile } from '../rules.mjs'
 
 function geminiHome() {
   return path.join(home(), '.gemini')
@@ -45,8 +45,8 @@ function frontmatter(mode) {
   ].join('\n')
 }
 
-function ruleBody(mode) {
-  return `${frontmatter(mode)}\n\n${RULES_BODY.trim()}\n`
+function ruleBody(mode, profile) {
+  return `${frontmatter(mode)}\n\n${rulesForProfile(profile).trim()}\n`
 }
 
 function readMode(file) {
@@ -80,11 +80,13 @@ export default {
 
   plan(profile, scope) {
     const targets = this.targets(scope)
-    const steps = [{ kind: 'owned', file: targets[0].file, body: ruleBody(modeFor(profile)) }]
+    const steps = [
+      { kind: 'owned', file: targets[0].file, body: ruleBody(modeFor(profile), profile) },
+    ]
     if (scope === 'project') {
       // The workspace rule is what actually enforces discipline everywhere,
       // since the reserved file defaults to manual activation.
-      steps.push({ kind: 'rules', file: targets[1].file, body: RULES_BODY })
+      steps.push({ kind: 'rules', file: targets[1].file, body: rulesForProfile(profile) })
     }
     return steps
   },

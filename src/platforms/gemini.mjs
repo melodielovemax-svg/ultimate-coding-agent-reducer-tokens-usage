@@ -4,13 +4,13 @@ import {
   home,
   exists,
   rel,
-  removeKeys,
+  surgicalRemove,
   removeManagedBlock,
   readConfig,
   upsertManagedBlock,
 } from '../fsutil.mjs'
 import { PROFILES, OWNED_KEYS } from '../profiles.mjs'
-import { RULES_BODY } from '../rules.mjs'
+import { CONTEXT_FILES, rulesForProfile } from '../rules.mjs'
 
 function geminiHome() {
   return path.join(home(), '.gemini')
@@ -22,8 +22,8 @@ function geminiHome() {
 function withContextEntry(existing) {
   const current = existing?.context?.fileName
   const list = Array.isArray(current) ? current : typeof current === 'string' ? [current] : []
-  if (list.includes('AGENTS.md')) return list
-  return ['AGENTS.md', ...list]
+  if (list.some((f) => CONTEXT_FILES.includes(f))) return list
+  return [...CONTEXT_FILES, ...list]
 }
 
 export default {
@@ -57,7 +57,7 @@ export default {
       readConfig(configTarget.file),
     )
     return [
-      { kind: 'rules', file: rulesTarget.file, body: RULES_BODY },
+      { kind: 'rules', file: rulesTarget.file, body: rulesForProfile(profile) },
       { kind: 'config', file: configTarget.file, patch },
     ]
   },
@@ -73,7 +73,18 @@ export default {
       if (target.kind === 'rules') {
         results.push({ path: target.file, ...removeManagedBlock(target.file, { dryRun }) })
       } else {
-        results.push(removeKeys(target.file, OWNED_KEYS.gemini, { dryRun }))
+        // `context.fileName` is shared with the user: the owned keys are removed,
+        // and only tur's own entry is dropped from the list, so entries the user
+        // added before install survive. One call, so the reported diff is the
+        // state after both operations rather than the state between them.
+        results.push(
+          surgicalRemove(
+            target.file,
+            OWNED_KEYS.gemini,
+            [{ key: 'context.fileName', drop: (f) => CONTEXT_FILES.includes(f) }],
+            { dryRun },
+          ),
+        )
       }
     }
     return results

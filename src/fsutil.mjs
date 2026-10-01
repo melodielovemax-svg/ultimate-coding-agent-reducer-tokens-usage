@@ -64,9 +64,32 @@ export function applyConfig(p, patch, { dryRun = false } = {}) {
 
 // Removes the keys named by `paths` (dotted) from the config at `p`.
 export function removeKeys(p, paths, { dryRun = false } = {}) {
+  return surgicalRemove(p, paths, [], { dryRun })
+}
+
+// One read, one clone, one write, one diff.
+//
+// `arrayEntries` covers keys tur shares with the user rather than owning:
+// removing `context.fileName` outright would delete entries the user added
+// before install, and removing nothing would leave tur's own `AGENTS.md`
+// behind. Both removals are applied to the same in-memory copy so the reported
+// diff is the real end state and dry-run matches what a real run would write.
+export function surgicalRemove(p, paths, arrayEntries, { dryRun = false } = {}) {
   const before = readConfig(p)
   if (Object.keys(before).length === 0) return { path: p, changes: [] }
   const after = structuredClone(before)
+
+  for (const { key, drop } of arrayEntries) {
+    const parts = key.split('.')
+    const parent = parts.slice(0, -1).reduce((n, k) => (n == null || typeof n !== 'object' ? undefined : n[k]), after)
+    const list = parent?.[parts.at(-1)]
+    if (!Array.isArray(list)) continue
+    const kept = list.filter((v) => !drop(v))
+    if (kept.length === list.length) continue
+    if (kept.length === 0) delete parent[parts.at(-1)]
+    else parent[parts.at(-1)] = kept
+  }
+
   for (const dotted of paths) {
     const parts = dotted.split('.')
     let node = after
@@ -79,6 +102,7 @@ export function removeKeys(p, paths, { dryRun = false } = {}) {
     }
     if (node && typeof node === 'object') delete node[parts.at(-1)]
   }
+
   pruneEmpty(after)
   const changes = diffPaths(before, after)
   if (!dryRun && changes.length > 0) {
@@ -108,6 +132,23 @@ function isEmptyObject(v) {
 export const BEGIN = '<!-- tur:begin -->'
 export const END = '<!-- tur:end -->'
 
+// Rule and instruction files are reported in the same shape as config diffs, so
+// the printer does not need a special case: the change is stated as a byte count
+// rather than as "(unset) -> written", which reads as if the file were new when
+// in fact a previous profile's body is being replaced.
+function bodyResult(p, from, to) {
+  const changed = from !== to
+  return {
+    path: p,
+    changed,
+    changes: changed ? [{ path: '(body bytes)', from: byteCount(from), to: byteCount(to) }] : [],
+  }
+}
+
+function byteCount(s) {
+  return `${Buffer.byteLength(s, 'utf8')} B`
+}
+
 export function upsertManagedBlock(p, body, { dryRun = false } = {}) {
   const block = `${BEGIN}\n${body.trim()}\n${END}`
   const current = exists(p) ? readText(p) : ''
@@ -124,7 +165,7 @@ export function upsertManagedBlock(p, body, { dryRun = false } = {}) {
   }
 
   if (!dryRun && next !== current) writeText(p, next)
-  return { path: p, changed: next !== current }
+  return bodyResult(p, current, next)
 }
 
 // Fully-owned file: the tool created this path and rewrites it wholesale, so
@@ -134,7 +175,7 @@ export function writeOwned(p, body, { dryRun = false } = {}) {
   const content = body.trim() + '\n'
   const current = exists(p) ? readText(p) : ''
   if (!dryRun && content !== current) writeText(p, content)
-  return { path: p, changed: content !== current }
+  return bodyResult(p, current, content)
 }
 
 // Drops one entry from a top-level array-valued config key. Used when an
@@ -161,25 +202,39 @@ export function removeFromArray(p, key, predicate, { dryRun = false } = {}) {
 }
 
 export function removeOwned(p, { dryRun = false } = {}) {
-  if (!exists(p)) return { path: p, changed: false }
+  if (!exists(p)) return { path: p, changed: false, changes: [] }
+  const current = readText(p)
   if (!dryRun) fs.rmSync(p)
-  return { path: p, changed: true }
+  return {
+    path: p,
+    changed: true,
+    changes: [{ path: '(file)', from: byteCount(current), to: '(removed)' }],
+  }
 }
 
 export function removeManagedBlock(p, { dryRun = false } = {}) {
-  if (!exists(p)) return { path: p, changed: false }
+  if (!exists(p)) return { path: p, changed: false, changes: [] }
   const current = readText(p)
   const start = current.indexOf(BEGIN)
   const end = current.indexOf(END)
-  if (start === -1 || end === -1 || end <= start) return { path: p, changed: false }
+  if (start === -1 || end === -1 || end <= start) return { path: p, changed: false, changes: [] }
   let next = current.slice(0, start) + current.slice(end + END.length)
   next = next.replace(/\n{3,}/g, '\n\n')
-  if (next.trim() === '') {
+  const emptied = next.trim() === ''
+  if (emptied) {
     if (!dryRun) fs.rmSync(p)
   } else if (!dryRun) {
     writeText(p, next)
   }
-  return { path: p, changed: true }
+  // The `to` value says what happened to the text. Reading "(unset) -> written"
+  // on an uninstall would claim the opposite of what was just done.
+  return {
+    path: p,
+    changed: true,
+    changes: [
+      { path: '(managed block)', from: byteCount(current), to: emptied ? '(file removed)' : byteCount(next) },
+    ],
+  }
 }
 
 export function rel(p) {

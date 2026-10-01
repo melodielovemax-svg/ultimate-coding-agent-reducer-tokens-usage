@@ -149,6 +149,62 @@ export const PROFILES = {
       },
     },
   },
+
+  // Hardest floor the tools still accept. Below these numbers a single file
+  // read cannot return a usable function signature, so this tier is only
+  // coherent alongside the reducer engine, which trims context before it ever
+  // reaches the model.
+  //
+  // `reserved` stays high on purpose: it is headroom for compaction to write
+  // into, and shrinking it makes compaction itself overflow and retry.
+  ultimate: {
+    description:
+      'Hardest viable caps. Use with the reducer engine; a single file read no longer returns whole files.',
+    opencode: {
+      tool_output: { max_lines: 40, max_bytes: 3072 },
+      compaction: {
+        auto: true,
+        prune: true,
+        tail_turns: 1,
+        preserve_recent_tokens: 4000,
+        reserved: 28000,
+      },
+      subagent_depth: 0,
+      experimental: {
+        disable_paste_summary: true,
+        continue_loop_on_deny: false,
+      },
+      agent: {
+        build: { steps: 18 },
+        plan: { steps: 8 },
+        explore: { steps: 6 },
+        general: { steps: 10 },
+      },
+    },
+    gemini: {
+      context: {
+        includeDirectoryTree: false,
+        discoveryMaxDirs: 1,
+        loadMemoryFromIncludeDirectories: false,
+      },
+      model: {
+        maxSessionTurns: 20,
+        compressionThreshold: 0.08,
+        summarizeToolOutput: { run_shell_command: { tokenBudget: 200 } },
+      },
+      contextManagement: {
+        historyWindow: { maxTokens: 8000, retainedTokens: 1500 },
+        messageLimits: {
+          normalMaxTokens: 200,
+          retainedMaxTokens: 1000,
+          normalizationHeadRatio: 0.05,
+        },
+        tools: {
+          distillation: { maxOutputTokens: 400, summarizationThresholdTokens: 800 },
+        },
+      },
+    },
+  },
 }
 
 export const PROFILE_NAMES = Object.keys(PROFILES)

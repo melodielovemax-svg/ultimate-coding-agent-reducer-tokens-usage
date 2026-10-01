@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "ultimate-coding-agent-reducer-tokens-usage",
+  "private": true,
+  "description": "Evidence manifest for the token reducer. Records what was measured and what was not.",
+  "notes": [
+    "Every reduction figure below was produced by running the tool on this repository.",
+    "No model was called. None of these numbers is a quality or cost measurement.",
+    "Token counts come from an estimator, not a provider tokenizer. See counter_kind."
+  ],
+  "generated_by": "tur tokens benchmark --repeats 3",
+  "counter_kind": "estimated",
+  "measured_on": {
+    "path": "src",
+    "files": 21,
+    "tokens_in": 27459
+  },
+  "results": [
+    {
+      "budget_tokens": 3000,
+      "tokens_out": 3000,
+      "reduction": 0.892,
+      "deterministic": true,
+      "stdev": 0
+    },
+    {
+      "budget_tokens": 2000,
+      "tokens_out": 2000,
+      "reduction": 0.927,
+      "deterministic": true,
+      "stdev": 0
+    }
+  ],
+  "stage_savings_tokens": {
+    "secrets": 0,
+    "skeletonize": 23857,
+    "budget": 1094
+  },
+  "profile_coverage": {
+    "profiles": ["balanced", "deep", "extreme", "ultimate"],
+    "schema_validation": "all pass against live opencode and Gemini CLI schemas"
+  },
+  "not_measured": [
+    "Answer quality before and after reduction.",
+    "Token counts as billed by any provider.",
+    "Latency or cost per task.",
+    "Behaviour on any repository other than this one."
+  ],
+  "how_to_reproduce": [
+    "npm install",
+    "npm test",
+    "npm run validate",
+    "node bin/tur.mjs tokens benchmark src --budget 3000 --repeats 3",
+    "node bin/tur.mjs tokens benchmark src --budget 3000 --repeats 3 --json"
+  ]
+}
